@@ -1,8 +1,10 @@
+import * as fs from 'fs';
+
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { CronJob } from 'cron';
-import * as fse from 'fs-extra';
+import * as tar from 'tar';
 
 const CRON_NAME = 'BACKUP_TASK';
 
@@ -36,19 +38,41 @@ export class TasksService {
   private async handleCron() {
     const backupPlan =
       this.configService.get<{ source: string; target: string }[]>(
-        'backupPlan',
+        'config.backupPlan',
       );
 
     for (const backup of backupPlan) {
       this.logger.log(
         `backing up source: ${backup.source} to target ${backup.target}`,
       );
+      const backupSourceArray = backup.source.split('/');
+      console.log(backupSourceArray);
+      const folder = backupSourceArray.pop();
+      console.log(backupSourceArray.join('/'));
+
       try {
-        fse.copySync(backup.source, backup.target, { overwrite: true });
-        this.logger.log('backup finished');
+        tar
+          .c(
+            {
+              gzip: true,
+              cwd: backupSourceArray.join('/'),
+            },
+            [folder],
+          )
+          .pipe(
+            fs.createWriteStream(
+              `${backup.target}/${this.getFileName()}.tar.gz`,
+            ),
+            () => this.logger.log('backup finished'),
+          );
       } catch (err) {
         this.logger.error(err);
       }
     }
+  }
+
+  private getFileName() {
+    const date = new Date();
+    return `${date.getFullYear()}.${date.getMonth()}.${date.getDay()}_${date.getHours()}.${date.getMinutes()}.${date.getSeconds()}`;
   }
 }
