@@ -1,10 +1,7 @@
-import * as fs from 'fs';
-
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { CronJob } from 'cron';
-import { catchError } from 'rxjs';
 import * as tar from 'tar';
 
 const CRON_NAME = 'BACKUP_TASK';
@@ -48,26 +45,17 @@ export class TasksService {
       );
       const backupSourceArray = backup.source.split('/');
       const folder = backupSourceArray.pop();
-
       try {
-        tar
-          .c(
-            {
-              gzip: true,
-              cwd: backupSourceArray.join('/'),
-            },
-            [folder],
-          )
-          .pipe(
-            fs.createWriteStream(
-              `${backup.target}/${this.getFileName()}.tar.gz`,
-            ),
-            () => this.logger.log('backup finished'),
-            catchError((err) => {
-              this.logger.error(err);
-              return '';
-            }),
-          );
+        await tar.c(
+          {
+            gzip: true,
+            cwd: backupSourceArray.join('/'),
+            file: `${backup.target}/${this.getFileName()}.tar.gz`,
+          },
+          [folder],
+        );
+
+        this.logger.log('backup finished');
       } catch (err) {
         this.logger.error(err);
       }
