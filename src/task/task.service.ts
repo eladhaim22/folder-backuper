@@ -4,6 +4,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { CronJob } from 'cron';
+import { catchError } from 'rxjs';
 import * as tar from 'tar';
 
 const CRON_NAME = 'BACKUP_TASK';
@@ -46,9 +47,7 @@ export class TasksService {
         `backing up source: ${backup.source} to target ${backup.target}`,
       );
       const backupSourceArray = backup.source.split('/');
-      console.log(backupSourceArray);
       const folder = backupSourceArray.pop();
-      console.log(backupSourceArray.join('/'));
 
       try {
         tar
@@ -64,6 +63,10 @@ export class TasksService {
               `${backup.target}/${this.getFileName()}.tar.gz`,
             ),
             () => this.logger.log('backup finished'),
+            catchError((err) => {
+              this.logger.error(err);
+              return '';
+            }),
           );
       } catch (err) {
         this.logger.error(err);
