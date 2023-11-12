@@ -10,8 +10,10 @@ const schema = Joi.object({
     .min(1)
     .items(
       Joi.object({
-        source: Joi.string().required(),
+        globExpression: Joi.string().required(),
+        baseSource: Joi.string().required(),
         target: Joi.string().required(),
+        retention: Joi.number(),
       }),
     ),
   port: Joi.number().required(),

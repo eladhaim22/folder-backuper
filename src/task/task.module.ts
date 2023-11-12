@@ -1,11 +1,12 @@
 import { Module } from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
 
-import { TasksService } from './task.service';
+import { BackupService } from './backup.service';
+import { CleanUpService } from './clean-up.service';
 
 @Module({
   imports: [ScheduleModule.forRoot()],
   controllers: [],
-  providers: [TasksService],
+  providers: [BackupService, CleanUpService],
 })
 export class TaskModule {}

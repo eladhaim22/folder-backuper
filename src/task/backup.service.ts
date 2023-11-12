@@ -2,13 +2,19 @@ import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { CronJob } from 'cron';
+import { glob } from 'glob';
+import { DateTime } from 'luxon';
 import * as tar from 'tar';
+
+import { BackupPlan } from '../models/backup.model';
 
 const CRON_NAME = 'BACKUP_TASK';
 
+export const DATE_FORMAT = 'yyyy.MM.dd_HH.mm.ss';
+
 @Injectable()
-export class TasksService {
-  private readonly logger = new Logger(TasksService.name);
+export class BackupService {
+  private readonly logger = new Logger(BackupService.name);
   constructor(
     protected schedulerRegistry: SchedulerRegistry,
     protected configService: ConfigService,
@@ -35,26 +41,25 @@ export class TasksService {
 
   private async handleCron() {
     const backupPlan =
-      this.configService.get<{ source: string; target: string }[]>(
-        'config.backupPlan',
-      );
+      this.configService.get<BackupPlan[]>('config.backupPlan');
 
     for (const backup of backupPlan) {
       this.logger.log(
-        `backing up source: ${backup.source} to target ${backup.target}`,
+        `backing up sources with glob expressions
+        ${backup.globExpression} from source folder ${backup.baseSource} to target ${backup.target}`,
       );
-      const backupSourceArray = backup.source.split('/');
-      const folder = backupSourceArray.pop();
+      const files = await glob(backup.globExpression, {
+        cwd: backup.baseSource,
+      });
       try {
         await tar.c(
           {
             gzip: true,
-            cwd: backupSourceArray.join('/'),
             file: `${backup.target}/${this.getFileName()}.tar.gz`,
+            cwd: backup.baseSource,
           },
-          [folder],
+          files,
         );
-
         this.logger.log('backup finished');
       } catch (err) {
         this.logger.error(err);
@@ -63,7 +68,6 @@ export class TasksService {
   }
 
   private getFileName() {
-    const date = new Date();
-    return `${date.getFullYear()}.${date.getMonth()}.${date.getDay()}_${date.getHours()}.${date.getMinutes()}.${date.getSeconds()}`;
+    return DateTime.now().toFormat(DATE_FORMAT);
   }
 }
