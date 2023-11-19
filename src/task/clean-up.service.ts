@@ -51,7 +51,7 @@ export class CleanUpService {
           DATE_FORMAT,
         );
 
-        if (DateTime.now() > fileDate.plus(retention)) {
+        if (DateTime.now() > fileDate.plus({ days: retention })) {
           this.logger.log(`Removing ${backup.target}/${file}`);
           fs.unlinkSync(`${backup.target}/${file}`);
         }
